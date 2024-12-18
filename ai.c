@@ -6,8 +6,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
-static long long AI_eval_pos(AI* ai, int state[BOARD_SIZE][BOARD_SIZE], int player, int x, int y);
+static long long AI_eval_pos(AI* ai, int state[BOARD_SIZE][BOARD_SIZE], int player, int x, int y, int direction[2]);
 static void AI_get_line(int state[BOARD_SIZE][BOARD_SIZE], int player,int x,int y,int dx,int dy,char* line);
 static long long AI_min_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SIZE], int player, double alpha, double beta,int depth);
 static long long AI_max_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SIZE], int player, double alpha, double beta,int depth);
@@ -92,19 +93,53 @@ int AI_look_up_table(AI* ai, int record_chess[225][2], int steps) {
     return -1;
 }
 
-static long long AI_heuristic_eval(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SIZE], int player, int last_x, int last_y, int have_last, long long prev_eval) {
+static long long AI_heuristic_eval(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SIZE], int player, int last_x, int last_y, int have_last, long long prev_eval, int prev_state[BOARD_SIZE][BOARD_SIZE]) {
     ai->count +=1;
     if (have_last && Game_check_ban(state, player, last_x, last_y) != -1) {
         return -100000000;
     }
+    if (have_last) {
+        int all_directions[4][2]={{1,0},{0,1},{1,1},{-1,1}};
+        long long target_eval = 0, delta_eval = 0, delta_opponent_eval = 0;
+        for (int i=0;i<4;i++) {
+            int *direction = all_directions[i];
+            target_eval += AI_eval_pos(ai, state, player, last_x, last_y, direction);
+        }
+        for (int i=0;i<4;i++) {
+            int *direction = all_directions[i];
+            for (int step = -4; step < 5; step++) {
+                if (step == 0)
+                    continue;
+                int x = last_x + step * direction[0];
+                int y = last_y + step * direction[1];
+                if (x >= 0 && x < BOARD_SIZE && y >= 0 && y < BOARD_SIZE) {
+                    if (state[x][y] == player) {
+                        long long current_target_eval = AI_eval_pos(ai, state, player, x, y, direction);
+                        long long prev_target_eval = AI_eval_pos(ai, prev_state, player, x, y, direction);
+                        delta_eval += current_target_eval - prev_target_eval;
+                    }
+                    else if (state[x][y] == 3 - player) {
+                        long long current_target_eval = AI_eval_pos(ai, state, 3 - player, x, y, direction);
+                        long long prev_target_eval = AI_eval_pos(ai, prev_state, 3 - player, x, y, direction);
+                        delta_opponent_eval += current_target_eval - prev_target_eval;
+                    }
+                }
+            }
+        }
+        return prev_eval + target_eval + delta_eval - delta_opponent_eval * 2;
+    }
     long long total_eval=0;
     for (int x=0;x<BOARD_SIZE;x++){
         for (int y=0;y<BOARD_SIZE;y++){
-            int c=state[x][y];
-            if (c==player) {
-                total_eval += AI_eval_pos(ai,state,player,x,y);
-            } else if (c==(3-player)) {
-                total_eval -= AI_eval_pos(ai,state,3-player,x,y) * 2;
+            int directions[4][2]={{1,0},{0,1},{1,1},{-1,1}};
+            for (int i=0;i<4;i++) {
+                int *direction = directions[i];
+                int c=state[x][y];
+                if (c==player) {
+                    total_eval += AI_eval_pos(ai,state,player,x,y, direction);
+                } else if (c==(3-player)) {
+                    total_eval -= AI_eval_pos(ai,state,3-player,x,y, direction) * 2;
+                }
             }
         }
     }
@@ -141,13 +176,18 @@ int AI_heuristic_alpha_beta_search(AI* ai, Game* game, int depth, int is_first_m
 }
 
 void ai_play(Game* game, AI* ai, int first_move, int *last_x, int *last_y) {
-    int code = AI_heuristic_alpha_beta_search(ai,game,4
+    clock_t start, end;
+    start = clock();
+    int code = AI_heuristic_alpha_beta_search(ai,game,5
     , first_move);
     int x=(code>>8)&0xFF;
     int y=code&0xFF;
     Game_play(game,x,y);
+    end = clock();
     *last_x=x;
     *last_y=y;
+    double cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("CPU time used = %f seconds\n", cpu_time_used);
     printf("%s %d %d\n", ai->name, x,y);
     Game_display_board(game,x,y,1);
 }
@@ -188,7 +228,7 @@ int compare_reverse(const void *a, const void *b) {
 // Min/Max search
 static long long AI_min_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SIZE], int player, double alpha, double beta,int depth);
 static long long AI_max_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SIZE], int player, double alpha, double beta,int depth) {
-    long long current_eval = AI_heuristic_eval(ai,game,state,player,-1,-1,0,0);
+    long long current_eval = AI_heuristic_eval(ai,game,state,player,-1,-1,0,0, NULL);
     if (Game_is_cutoff(game,state,depth)) {
         long long val = current_eval;
         return (val<<16)| (0xFF<<8)|0xFF;
@@ -205,7 +245,7 @@ static long long AI_max_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SI
     for (int i=0;i<act.count;i++){
         int nstate[BOARD_SIZE][BOARD_SIZE];
         Game_result(state,nstate,act.x[i],act.y[i],player);
-        long long val = AI_heuristic_eval(ai,game,nstate,player,act.x[i],act.y[i],1,current_eval);
+        long long val = AI_heuristic_eval(ai,game,nstate,player,act.x[i],act.y[i],1,current_eval, state);
         arr[arr_count].x=act.x[i];
         arr[arr_count].y=act.y[i];
         arr[arr_count].score=val;
@@ -267,7 +307,7 @@ static long long AI_max_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SI
 }
 
 static long long AI_min_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SIZE], int player, double alpha, double beta,int depth) {
-    long long current_eval = AI_heuristic_eval(ai,game,state,player,-1,-1,0,0);
+    long long current_eval = AI_heuristic_eval(ai,game,state,player,-1,-1,0,0, state);
     if (Game_is_cutoff(game,state,depth)) {
         long long val = current_eval;
         return (val<<16)|(0xFF<<8)|0xFF;
@@ -284,7 +324,7 @@ static long long AI_min_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SI
     for (int i=0;i<act.count;i++){
         int nstate[BOARD_SIZE][BOARD_SIZE];
         Game_result(state,nstate,act.x[i],act.y[i],3-player);
-        long long val = AI_heuristic_eval(ai,game,nstate,player,act.x[i],act.y[i],1,current_eval);
+        long long val = AI_heuristic_eval(ai,game,nstate,player,act.x[i],act.y[i],1,current_eval, state);
         arr[arr_count].x=act.x[i];
         arr[arr_count].y=act.y[i];
         arr[arr_count].score=val;
@@ -338,14 +378,11 @@ static long long AI_min_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SI
     return (best_val<<16)|(best_x<<8)|best_y;
 }
 
-static long long AI_eval_pos(AI* ai, int state[BOARD_SIZE][BOARD_SIZE], int player, int x, int y) {
+static long long AI_eval_pos(AI* ai, int state[BOARD_SIZE][BOARD_SIZE], int player, int x, int y, int direction[2]) {
     long long total_eval=0;
-    int directions[4][2]={{1,0},{0,1},{1,1},{-1,1}};
-    for (int i=0;i<4;i++){
-        char line[64];
-        AI_get_line(state,player,x,y,directions[i][0],directions[i][1],line);
-        total_eval+= match_patterns(ai->patterns, line, ai->pattern_weights);
-    }
+    char line[64];
+    AI_get_line(state,player,x,y,direction[0],direction[1],line);
+    total_eval+= match_patterns(ai->patterns, line, ai->pattern_weights);
     return total_eval;
 }
 
