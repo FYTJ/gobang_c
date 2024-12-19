@@ -2,14 +2,19 @@
 // Created by 竹彦博 on 2024/12/9.
 //
 #include "ai.h"
+
+#include <limits.h>
+
 #include "patterns.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
+#include <pthread.h>
+#include </usr/local/Cellar/libomp/19.1.6/include/omp.h>
 
 static long long AI_eval_pos(AI* ai, int state[BOARD_SIZE][BOARD_SIZE], int player, int x, int y, int direction[2]);
 static void AI_get_line(int state[BOARD_SIZE][BOARD_SIZE], int player,int x,int y,int dx,int dy,char* line);
+static void* AI_parallel_max_value(void* arg);
 static long long AI_min_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SIZE], int player, double alpha, double beta,int depth);
 static long long AI_max_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SIZE], int player, double alpha, double beta,int depth);
 
@@ -189,7 +194,7 @@ void ai_play(Game* game, AI* ai, int first_move, int *last_x, int *last_y) {
     double cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
     printf("CPU time used = %f seconds\n", cpu_time_used);
     printf("%s %d %d\n", ai->name, x,y);
-    Game_display_board(game,x,y,1);
+    // Game_display_board(game,x,y,1);
 }
 
 void human_play(Game* game, int *x, int *y) {
@@ -226,7 +231,30 @@ int compare_reverse(const void *a, const void *b) {
 }
 
 // Min/Max search
-static long long AI_min_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SIZE], int player, double alpha, double beta,int depth);
+
+static void* AI_parallel_max_value(void* arg) {
+    Parallel_args *args = (Parallel_args*)arg;
+    int* task_index = args -> task_index;
+    AI* ai = args -> ai;
+    Game* game = args -> game;
+    int (*nstate)[BOARD_SIZE] = args -> nstate;
+    int player = args -> player;
+    double alpha = args -> alpha;
+    double beta = args -> beta;
+    int depth = args -> depth;
+    int x = args -> x;
+    int y = args -> y;
+    Parallel_returns *results = (Parallel_returns*)(args -> results);
+    void* mutex = args -> result_mutex;
+    long long res = AI_min_value(ai, game, nstate, player, alpha, beta, depth);
+    pthread_mutex_lock(mutex);
+    results[*task_index].res = res;
+    results[*task_index].x = x;
+    results[*task_index].y = y;
+    pthread_mutex_unlock(mutex);
+    return NULL;
+}
+
 static long long AI_max_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SIZE], int player, double alpha, double beta,int depth) {
     long long current_eval = AI_heuristic_eval(ai,game,state,player,-1,-1,0,0, NULL);
     if (Game_is_cutoff(game,state,depth)) {
@@ -251,17 +279,6 @@ static long long AI_max_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SI
         arr[arr_count].score=val;
         arr_count++;
     }
-    // for (int i=0;i<arr_count-1;i++){
-    //     for (int j=i+1;j<arr_count;j++){
-    //         if (arr[i].score < arr[j].score) {
-    //             long long tmp_s=arr[i].score = 0;
-    //             long long tmp_x=arr[i].x = 0;
-    //             long long tmp_y=arr[i].y = 0;
-    //             arr[i].score=arr[j].score;arr[i].x=arr[j].x;arr[i].y=arr[j].y;
-    //             arr[j].score=tmp_s;arr[j].x=tmp_x;arr[j].y=tmp_y;
-    //         }
-    //     }
-    // }
     qsort(arr, arr_count, sizeof(Data), compare);
 
     ai->maxv += 1;
@@ -272,6 +289,64 @@ static long long AI_max_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SI
     long long best_val = -100000000;
     int best_x=255,best_y=255;
 
+    if (depth == 5) {
+        Parallel_returns results[ai->lmr_threshold];
+        pthread_mutex_t result_mutex = PTHREAD_MUTEX_INITIALIZER;
+        pthread_t threads[ai->lmr_threshold];
+
+        for (int i=0;i<arr_count;i++) {
+            int* task_index = malloc(sizeof(int));
+            *task_index = i;
+
+            int x=arr[i].x;
+            int y=arr[i].y;
+
+            Parallel_args myArgs;
+            myArgs.task_index = task_index;
+            myArgs.ai = ai;
+            myArgs.game = game;
+            myArgs.player = player;
+            myArgs.alpha = alpha;
+            myArgs.beta = beta;
+            myArgs.depth = depth - 1;
+            myArgs.x = x;
+            myArgs.y = y;
+            myArgs.results = results;
+            myArgs.result_mutex = &result_mutex;
+
+            int in_nbr=0;
+            for (int k=0;k<nbr.count;k++){
+                if (nbr.x[k]==x && nbr.y[k]==y) {
+                    in_nbr=1;
+                    break;
+                }
+            }
+            if (!in_nbr) continue;
+
+            if (i >= ai->lmr_threshold && depth>=ai->lmr_min_depth) {
+                continue;
+            }
+
+            int nstate[BOARD_SIZE][BOARD_SIZE];
+            Game_result(state,nstate,x,y,player);
+            pthread_create(&threads[i], NULL, AI_parallel_max_value, &myArgs);
+        }
+        for (int i = 0; i < ai->lmr_threshold; i++) {
+            pthread_join(threads[i], NULL);
+        }
+        pthread_mutex_destroy(&result_mutex);
+        long long max_result = LONG_LONG_MIN;
+        int max_index = -1;
+        for (int i = 0; i < ai->lmr_threshold; i++) {
+            if (results[i].res > max_result) {
+                max_result = results[i].res;
+                max_index = i;
+            }
+        }
+        return (max_result << 16) | (results[max_index].x << 8) | results[max_index].y;
+    }
+
+    
     for (int i=0;i<arr_count;i++){
         int x=arr[i].x;
         int y=arr[i].y;
@@ -330,17 +405,6 @@ static long long AI_min_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SI
         arr[arr_count].score=val;
         arr_count++;
     }
-    // for (int i=0;i<arr_count-1;i++){
-    //     for (int j=i+1;j<arr_count;j++){
-    //         if (arr[i].score > arr[j].score) {
-    //             long long tmp_s=arr[i].score = 0;
-    //             long long tmp_x=arr[i].x = 0;
-    //             long long tmp_y=arr[i].y = 0;
-    //             arr[i].score=arr[j].score;arr[i].x=arr[j].x;arr[i].y=arr[j].y;
-    //             arr[j].score=tmp_s;arr[j].x=tmp_x;arr[j].y=tmp_y;
-    //         }
-    //     }
-    // }
     qsort(arr, arr_count, sizeof(Data), compare_reverse);
     ai->minv += 1;
 
