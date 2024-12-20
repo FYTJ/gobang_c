@@ -3,6 +3,8 @@
 //
 #include "game.h"
 #include <string.h>
+#include <wchar.h>
+#include <locale.h>
 
 // 定义方向移动函数
 void up(int p[], int step) {
@@ -39,20 +41,97 @@ int Game_to_move(Game *game) {
 }
 
 void Game_display_board(Game *game, int last_x, int last_y, int have_last) {
+    setlocale(LC_ALL, "en_US.UTF-8");
+    wchar_t empty_board[BOARD_SIZE][3 * BOARD_SIZE + 1] = {
+        {
+            L'\u250F', L'\u252F', L'\u252F', L'\u252F', L'\u252F', L'\u252F', L'\u252F', L'\u252F', L'\u252F',
+            L'\u252F', L'\u252F', L'\u252F', L'\u252F', L'\u252F', L'\u2513'
+        },
+        {
+            L'\u2520', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C',
+            L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u252B'
+        },
+        {
+            L'\u2520', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C',
+            L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u252B'
+        },
+        {
+            L'\u2520', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C',
+            L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u252B'
+        },
+        {
+            L'\u2520', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C',
+            L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u252B'
+        },
+        {
+            L'\u2520', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C',
+            L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u252B'
+        },
+        {
+            L'\u2520', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C',
+            L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u252B'
+        },
+        {
+            L'\u2520', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C',
+            L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u252B'
+        },
+        {
+            L'\u2520', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C',
+            L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u252B'
+        },
+        {
+            L'\u2520', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C',
+            L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u252B'
+        },
+        {
+            L'\u2520', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C',
+            L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u252B'
+        },
+        {
+            L'\u2520', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C',
+            L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u252B'
+        },
+        {
+            L'\u2520', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C',
+            L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u252B'
+        },
+        {
+            L'\u2520', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C',
+            L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u253C', L'\u252B'
+        },
+        {
+            L'\u2517', L'\u2537', L'\u2537', L'\u2537', L'\u2537', L'\u2537', L'\u2537', L'\u2537', L'\u2537',
+            L'\u2537', L'\u2537', L'\u2537', L'\u2537', L'\u2537', L'\u251B'
+        }
+    };
+    struct {
+        int key;
+        wchar_t value;
+    } chess_dict[] = {
+                1, L'\u25CF',
+                2, L'\u25CE',
+                3, L'\u25B2',
+                4, L'\u25B3'
+            };
     for (int x = BOARD_SIZE - 1; x >= 0; x--) {
-        printf("%2d ", x + 1);
+        printf("%2d", x + 1);
         for (int y = 0; y < BOARD_SIZE; y++) {
             int val = game->board[x][y];
-            if (have_last && x == last_x && y == last_y) {
-                val += 2;
+            if (val != 0) {
+                if (have_last && x == last_x && y == last_y) {
+                    wprintf(L"%lc", chess_dict[val + 2 - 1].value);
+                } else {
+                    wprintf(L"%lc", chess_dict[val - 1].value);
+                }
+            } else {
+                wprintf(L"%lc", empty_board[BOARD_SIZE - x - 1][y]);
             }
-            printf("%2d ", val);
         }
         printf("\n");
     }
-    printf("   ");
-    for (int i = 1; i <= BOARD_SIZE; i++) {
-        printf("%2d ", i);
+    printf("  ");
+    for (char i = 'A'; i < 'A' + BOARD_SIZE; i++) {
+        printf("%c", i);
     }
     printf("\n\n");
 }
@@ -207,6 +286,7 @@ int single_pattern4_5[7] = {1, 0, 1, 1, 1, 0, 1};
 int single_pattern4_6[8] = {1, 0, 1, 1, 1, 1, 0, 1};
 int single_pattern4_7[9] = {1, 1, 1, 0, 1, 0, 1, 1, 1};
 int single_pattern4_8[8] = {1, 1, 0, 1, 1, 0, 1, 1};
+int pattern6[6] = {1, 1, 1, 1, 1, 1};
 
 
 int double_three(int board[15][15], int last_pos[2]);
@@ -294,6 +374,34 @@ int double_four(int board[15][15], int last_pos[2]) {
             // printf("黑双四禁手\n");
             return 1;
         }
+    }
+    return 0;
+}
+
+int long_six(int board[15][15], int last_pos[2]) {
+    for (int i = 0; i < 4; i++) {
+        int series[11]; // 以落子处为中心，向正负方向分别搜索4个步长
+        for (int j = 0; j < 11; j++) {
+            series[j] = 0;
+        }
+        series[5] = 1;
+        int search_pos[] = {last_pos[0], last_pos[1]};
+        for (int j = 1; j <= 5; j++) {
+            pos[i](search_pos, 1);
+            if (search_pos[0] > 14 || search_pos[1] > 14)
+                break;
+            series[5 + j] = board[search_pos[0]][search_pos[1]] == 3 ? 1 : board[search_pos[0]][search_pos[1]];
+        }
+        search_pos[0] = last_pos[0];
+        search_pos[1] = last_pos[1];
+        for (int j = 1; j <= 5; j++) {
+            pos[i](search_pos, -1);
+            if (search_pos[0] < 0 || search_pos[1] < 0)
+                break;
+            series[5 - j] = board[search_pos[0]][search_pos[1]] == 3 ? 1 : board[search_pos[0]][search_pos[1]];
+        }
+        if (find(pattern6, series, 6, 11))
+            return 1;
     }
     return 0;
 }
