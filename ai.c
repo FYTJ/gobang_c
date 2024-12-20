@@ -7,7 +7,7 @@
 
 #include "patterns.h"
 #include <stdio.h>
-#include <stdlib.h>
+#include <math.h>
 #include <string.h>
 #include <pthread.h>
 #include </usr/local/Cellar/libomp/19.1.6/include/omp.h>
@@ -132,7 +132,7 @@ static long long AI_heuristic_eval(AI* ai, Game* game, int state[BOARD_SIZE][BOA
                 }
             }
         }
-        return prev_eval + target_eval + delta_eval - delta_opponent_eval * 2;
+        return floor(prev_eval + target_eval + delta_eval - delta_opponent_eval * 1.2);
     }
     long long total_eval=0;
     for (int x=0;x<BOARD_SIZE;x++){
@@ -144,7 +144,7 @@ static long long AI_heuristic_eval(AI* ai, Game* game, int state[BOARD_SIZE][BOA
                 if (c==player) {
                     total_eval += AI_eval_pos(ai,state,player,x,y, direction);
                 } else if (c==(3-player)) {
-                    total_eval -= AI_eval_pos(ai,state,3-player,x,y, direction) * 2;
+                    total_eval -= floor(AI_eval_pos(ai,state,3-player,x,y, direction) * 1.2);
                 }
             }
         }
