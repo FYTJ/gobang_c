@@ -11,6 +11,7 @@
 #include <string.h>
 #include <pthread.h>
 #include </usr/local/Cellar/libomp/19.1.6/include/omp.h>
+#include <sys/time.h>
 
 static long long AI_eval_pos(AI* ai, int state[BOARD_SIZE][BOARD_SIZE], int player, int x, int y, int direction[2]);
 static void AI_get_line(int state[BOARD_SIZE][BOARD_SIZE], int player,int x,int y,int dx,int dy,char* line);
@@ -244,7 +245,8 @@ static void* AI_parallel_max_value(void* arg) {
     int* task_index = args -> task_index;
     AI* ai = args -> ai;
     Game* game = args -> game;
-    int (*nstate)[BOARD_SIZE] = args -> nstate;
+    int **nstate_arg = args -> nstate_arg;
+    int nstate[BOARD_SIZE][BOARD_SIZE];
     int player = args -> player;
     double alpha = args -> alpha;
     double beta = args -> beta;
@@ -253,9 +255,14 @@ static void* AI_parallel_max_value(void* arg) {
     int y = args -> y;
     Parallel_returns *results = (Parallel_returns*)(args -> results);
     void* mutex = args -> result_mutex;
+    for (int i=0;i<BOARD_SIZE;i++) {
+        for (int j=0;j<BOARD_SIZE;j++) {
+            nstate[i][j] = nstate_arg[i][j];
+        }
+    }
     long long res = AI_min_value(ai, game, nstate, player, alpha, beta, depth);
     pthread_mutex_lock(mutex);
-    results[*task_index].res = res;
+    results[*task_index].v = res >> 16;
     results[*task_index].x = x;
     results[*task_index].y = y;
     pthread_mutex_unlock(mutex);
@@ -297,9 +304,9 @@ static long long AI_max_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SI
     int best_x=255,best_y=255;
 
     if (depth == 5) {
-        Parallel_returns results[ai->lmr_threshold];
+        Parallel_returns results[10];
+        pthread_t threads[10];
         pthread_mutex_t result_mutex = PTHREAD_MUTEX_INITIALIZER;
-        pthread_t threads[ai->lmr_threshold];
 
         for (int i=0;i<arr_count;i++) {
             int* task_index = malloc(sizeof(int));
@@ -308,18 +315,31 @@ static long long AI_max_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SI
             int x=arr[i].x;
             int y=arr[i].y;
 
-            Parallel_args myArgs;
-            myArgs.task_index = task_index;
-            myArgs.ai = ai;
-            myArgs.game = game;
-            myArgs.player = player;
-            myArgs.alpha = alpha;
-            myArgs.beta = beta;
-            myArgs.depth = depth - 1;
-            myArgs.x = x;
-            myArgs.y = y;
-            myArgs.results = results;
-            myArgs.result_mutex = &result_mutex;
+            int nstate[15][15];
+            Game_result(state,nstate,x,y,player);
+            int **nstate_arg = malloc(BOARD_SIZE * sizeof(int *));
+            for (int j=0;j<BOARD_SIZE;j++) {
+                nstate_arg[j] = malloc(BOARD_SIZE * sizeof(int));
+            }
+            for (int j=0;j<BOARD_SIZE;j++) {
+                for (int k=0;k<BOARD_SIZE;k++) {
+                    nstate_arg[j][k]=nstate[j][k];
+                }
+            }
+
+            Parallel_args *myArgs = malloc(sizeof(Parallel_args));
+            myArgs->task_index = task_index;
+            myArgs->ai = ai;
+            myArgs->game = game;
+            myArgs->nstate_arg = nstate_arg;
+            myArgs->player = player;
+            myArgs->alpha = alpha;
+            myArgs->beta = beta;
+            myArgs->depth = depth - 1;
+            myArgs->x = x;
+            myArgs->y = y;
+            myArgs->results = results;
+            myArgs->result_mutex = &result_mutex;
 
             int in_nbr=0;
             for (int k=0;k<nbr.count;k++){
@@ -334,9 +354,8 @@ static long long AI_max_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SI
                 continue;
             }
 
-            int nstate[BOARD_SIZE][BOARD_SIZE];
-            Game_result(state,nstate,x,y,player);
-            pthread_create(&threads[i], NULL, AI_parallel_max_value, &myArgs);
+
+            pthread_create(&threads[i], NULL, AI_parallel_max_value, myArgs);
         }
         for (int i = 0; i < ai->lmr_threshold; i++) {
             pthread_join(threads[i], NULL);
@@ -345,15 +364,15 @@ static long long AI_max_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SI
         long long max_result = LONG_LONG_MIN;
         int max_index = -1;
         for (int i = 0; i < ai->lmr_threshold; i++) {
-            if (results[i].res > max_result) {
-                max_result = results[i].res;
+            if (results[i].v > max_result) {
+                max_result = results[i].v;
                 max_index = i;
             }
         }
         return (max_result << 16) | (results[max_index].x << 8) | results[max_index].y;
     }
 
-    
+    // #pragma omp parallel for shared(ai, game, arr, nbr, state, player, alpha, beta, depth) reduction(max:best_val) reduction(max:best_x) reduction(max:best_y)
     for (int i=0;i<arr_count;i++){
         int x=arr[i].x;
         int y=arr[i].y;
@@ -421,6 +440,7 @@ static long long AI_min_value(AI* ai, Game* game, int state[BOARD_SIZE][BOARD_SI
     long long best_val = 100000000;
     int best_x=255,best_y=255;
 
+// #pragma omp parallel for shared(ai, game, arr, nbr, state, player, alpha, beta, depth) reduction(min:best_val) reduction(min:best_x) reduction(min:best_y)
     for (int i=0;i<arr_count;i++){
         int x=arr[i].x;int y=arr[i].y;
         int in_nbr=0;
