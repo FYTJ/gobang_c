@@ -181,31 +181,38 @@ int AI_heuristic_alpha_beta_search(AI* ai, Game* game, int depth, int is_first_m
 }
 
 void ai_play(Game* game, AI* ai, int first_move, int *last_x, int *last_y) {
-    clock_t start, end;
-    start = clock();
+    struct timeval start_time, end_time;
+    gettimeofday(&start_time, NULL);
     int code = AI_heuristic_alpha_beta_search(ai,game,5
     , first_move);
     int x=(code>>8)&0xFF;
     int y=code&0xFF;
     Game_play(game,x,y);
-    end = clock();
+    gettimeofday(&end_time, NULL);
     *last_x=x;
     *last_y=y;
-    double cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("CPU time used = %f seconds\n", cpu_time_used);
-    printf("%s %d %d\n", ai->name, x,y);
-    // Game_display_board(game,x,y,1);
+    double time_taken = (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_usec - start_time.tv_usec) / 1000000.0;
+    printf("%s %c %d\n", ai->name, 'A' + y, x + 1);
+    printf("time consumption: %f seconds\n", time_taken);
+    Game_display_board(game,x,y,1);
 }
 
 void human_play(Game* game, int *x, int *y) {
-    printf("your move (line, column): ");
-    int line,col;
-    scanf("%d %d",&line,&col);
-    line-=1;col-=1;
-    while(!Game_play(game,line,col)) {
+    printf("your move (column, line): ");
+    int line;
+    char col_c;
+    int col;
+    char _;
+    scanf("\n%c %d",&col_c, &line);
+    line-=1;
+    col = col_c - 'A';
+    while(!Game_play(game,line,col) || line < 1 || line > BOARD_SIZE || col < 1 || col > BOARD_SIZE) {
         printf("try again\n");
-        scanf("%d %d",&line,&col);
-        line-=1;col-=1;
+        printf("your move should be like: H 8\n");
+        printf("your move (column, line): ");
+        scanf("\n%c %d",&col_c, &line);
+        line-=1;
+        col = col_c - 'A';
     }
     *x=line;
     *y=col;
