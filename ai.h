@@ -32,6 +32,31 @@ typedef struct {
     long long score;
 } Data;
 
+
+typedef struct {
+    long long v;
+    int x;
+    int y;
+} Parallel_returns;
+
+
+typedef struct {
+    int *task_index;
+    AI* ai;
+    Game* game;
+    int **nstate_arg;
+    int player;
+    double alpha;
+    double beta;
+    int depth;
+    int x;
+    int y;
+    Parallel_returns* results;
+    void* result_mutex;
+} Parallel_args;
+
+
+
 void AI_init(AI* ai, const char* name, int color);
 void AI_read_openings(AI* ai, const char* filename);
 int AI_heuristic_alpha_beta_search(AI* ai, Game* game, int depth, int is_first_move);
