@@ -9,7 +9,6 @@
 
 typedef struct {
     char pattern[128];
-    // 2024/12/10 11:11 int value;
     regex_t regex;
 } PatternEntry;
 
