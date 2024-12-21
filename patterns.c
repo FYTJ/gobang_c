@@ -16,11 +16,9 @@ void compile_patterns(PatternEntry patterns[PATTERN_COUNT]) {
         "000112|211000|001012|210100|010012|210010|10001",
         "000100|001000"
     };
-    // int pattern_val[PATTERN_COUNT] = {50000,4320,720,720,120,50,20};
 
     for (int i=0;i<PATTERN_COUNT;i++){
         strcpy(patterns[i].pattern,pattern_str[i]);
-        // patterns[i].value=pattern_val[i];
         if (regcomp(&patterns[i].regex, patterns[i].pattern, REG_EXTENDED)) {
             fprintf(stderr,"Regex compile error: %s\n", patterns[i].pattern);
             exit(1);
