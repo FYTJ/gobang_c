@@ -37,6 +37,10 @@ void Game_init(Game *game) {
 }
 
 int Game_to_move(Game *game) {
+    /*
+     * 返回当前轮到行动的玩家
+     * 黑为1，白为2
+     */
     return game->current_player;
 }
 
@@ -149,9 +153,10 @@ int Game_play(Game *game, int line, int col) {
 }
 
 int Game_check_winner(int state[BOARD_SIZE][BOARD_SIZE]) {
-    // if (Game_check_ban(state, 1, -1, -1) != -1) {
-    //     return 2;
-    // }
+    /*
+     * 裁判
+     * 0: dual; 1: black; 2: white
+     */
     int directions[4][2] = {{1, 0}, {0, 1}, {1, 1}, {1, -1}};
     for (int x = 0; x < BOARD_SIZE; x++) {
         for (int y = 0; y < BOARD_SIZE; y++) {
@@ -181,11 +186,17 @@ int Game_check_winner(int state[BOARD_SIZE][BOARD_SIZE]) {
 }
 
 int Game_is_cutoff(Game *game, int state[BOARD_SIZE][BOARD_SIZE], int depth) {
+    /*
+     * 判断当前状态是否为终止状态
+     */
     int w = Game_check_winner(state);
     return (w != -1 || depth <= 0);
 }
 
 void Game_actions(int state[BOARD_SIZE][BOARD_SIZE], Actions *act) {
+    /*
+     * 返回当前状态下所有合法的行动
+     */
     act->count = 0;
     for (int i = 0; i < BOARD_SIZE; i++) {
         for (int j = 0; j < BOARD_SIZE; j++) {
@@ -200,6 +211,9 @@ void Game_actions(int state[BOARD_SIZE][BOARD_SIZE], Actions *act) {
 
 void Game_result(int old_state[BOARD_SIZE][BOARD_SIZE], int new_state[BOARD_SIZE][BOARD_SIZE], int x, int y,
                  int player) {
+    /*
+     * 返回执行某一行动后的新状态
+     */
     for (int i = 0; i < BOARD_SIZE; i++) {
         for (int j = 0; j < BOARD_SIZE; j++) {
             new_state[i][j] = old_state[i][j];
@@ -209,6 +223,9 @@ void Game_result(int old_state[BOARD_SIZE][BOARD_SIZE], int new_state[BOARD_SIZE
 }
 
 void Game_neighbors(int state[BOARD_SIZE][BOARD_SIZE], Actions *nbr) {
+    /*
+     * 返回当前局面的邻域：向外延伸两个点
+     */
     nbr->count = 0;
     int directions[8][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, -1}, {-1, 1}};
     int mark[BOARD_SIZE][BOARD_SIZE];
@@ -255,22 +272,18 @@ int Game_check_ban(int state[BOARD_SIZE][BOARD_SIZE], int player, int last_x, in
         return -1;
     }
     int board[15][15];
-    // 将state复制到board中
     for (int i = 0; i < 15; i++) {
         for (int j = 0; j < 15; j++) {
             board[i][j] = state[i][j];
         }
     }
-    int ban = -1;
+    int ban;
     int last_pos[2];
     last_pos[0] = last_x;
     last_pos[1] = last_y;
     ban = check_ban(board, last_pos, player);
     return ban; // 返回1表示黑禁手，2表示白禁手，-1表示无禁手
 }
-
-
-typedef void (*FuncPtr)(int [], int);
 
 int pattern3_1[6] = {0, 1, 1, 1, 0, 0};
 int pattern3_2[6] = {0, 0, 1, 1, 1, 0};
@@ -288,8 +301,6 @@ int single_pattern4_7[9] = {1, 1, 1, 0, 1, 0, 1, 1, 1};
 int single_pattern4_8[8] = {1, 1, 0, 1, 1, 0, 1, 1};
 int pattern6[6] = {1, 1, 1, 1, 1, 1};
 
-
-int double_three(int board[15][15], int last_pos[2]);
 
 int double_three(int board[15][15], int last_pos[2]) {
     int counter = 0;
@@ -333,9 +344,6 @@ int double_three(int board[15][15], int last_pos[2]) {
     }
     return 0;
 }
-
-
-int double_four(int board[15][15], int last_pos[2]);
 
 int double_four(int board[15][15], int last_pos[2]) {
     int counter = 0;
@@ -416,7 +424,6 @@ int check_ban(int board[15][15], int last_pos[], int player) {
      *Return:
      *  is_ban(int): 0 / 1
      */
-
     if (player != 1)
         return 0;
     int start[] = {last_pos[0], last_pos[1]};
