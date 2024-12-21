@@ -22,6 +22,12 @@ typedef struct {
     int count;
 } Actions;
 
+typedef void (*FuncPtr)(int [], int);
+
+void up(int [], int);
+void right(int [], int);
+void upper_right(int [], int);
+void lower_right(int [], int);
 void Game_init(Game* game);
 int Game_to_move(Game* game);
 void Game_display_board(Game* game, int last_x, int last_y, int have_last);
@@ -32,11 +38,11 @@ void Game_actions(int state[BOARD_SIZE][BOARD_SIZE], Actions* act);
 void Game_result(int old_state[BOARD_SIZE][BOARD_SIZE], int new_state[BOARD_SIZE][BOARD_SIZE], int x, int y, int player);
 void Game_neighbors(int state[BOARD_SIZE][BOARD_SIZE], Actions* nbr);
 int Game_check_ban(int state[BOARD_SIZE][BOARD_SIZE], int player, int last_x, int last_y);
-void up(int [], int);
-void right(int [], int);
-void upper_right(int [], int);
-void lower_right(int [], int);
+
 int find(int pattern[], int list[], int pattern_len, int list_len);
 int check_ban(int board[15][15], int last_pos[2], int player);
 
+int double_three(int board[15][15], int last_pos[2]);
+int double_four(int board[15][15], int last_pos[2]);
+int long_six(int board[15][15], int last_pos[2]);
 #endif
