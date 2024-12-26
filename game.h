@@ -33,7 +33,7 @@ int Game_to_move(Game* game);
 void Game_display_board(Game* game, int last_x, int last_y, int have_last);
 int Game_play(Game* game, int line, int col);
 int Game_check_winner(int state[BOARD_SIZE][BOARD_SIZE]);
-int Game_is_cutoff(Game* game, int state[BOARD_SIZE][BOARD_SIZE], int depth);
+int Game_is_cutoff(const Game* game, int state[BOARD_SIZE][BOARD_SIZE], int depth);
 void Game_actions(int state[BOARD_SIZE][BOARD_SIZE], Actions* act);
 void Game_result(int old_state[BOARD_SIZE][BOARD_SIZE], int new_state[BOARD_SIZE][BOARD_SIZE], int x, int y, int player);
 void Game_neighbors(int state[BOARD_SIZE][BOARD_SIZE], Actions* nbr);
