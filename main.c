@@ -19,7 +19,7 @@ int main() {
     Game game;
     Game_init(&game);
 
-    printf("1: human-human; 2: human-ai; 3: ai-ai; 4: tune-parameters; 5: debug\nchoose: ");
+    printf("1: human-human; 2: human-ai; 3: ai-ai\nchoose: ");
     int mode;
     scanf("%d", &mode);
 
@@ -44,7 +44,10 @@ int main() {
     }
     if (mode == 5) {
         int existed_chess[][2] = {
-            {7, 7}, {7, 8}, {8, 5}, {8, 9}, {6, 7}, {8, 7}, {7, 6}, {5, 8}, {9, 4}, {10, 3}, {8, 8}, {6, 9}
+            {7, 7}, {7, 8}, {8, 9}, {9, 9}, {6, 7}, {9, 8}, {6, 8}, {9, 7}, {9, 6}, {10, 8}, {8, 6}, {8, 8}, {11, 8},
+            {5, 9}, {10, 4}, {9, 5}, {10, 6}, {7, 6}, {6, 5}, {6, 6}, {5, 7}, {4, 7}, {4, 6}, {7, 9}, {3, 5}, {2, 4},
+            {12, 6}, {11, 6}, {5, 5}, {6, 10}, {5, 11}, {2, 5}, {3, 7}, {9, 10}, {9, 11}, {6, 4}, {3, 6}, {3, 8},
+            {5, 4}, {5, 8}, {4, 5}, {7, 5}, {5, 6}
         };
         int num_existed = sizeof(existed_chess) / sizeof(existed_chess[0]);
         // 将预设棋子放置到棋盘上
@@ -60,7 +63,8 @@ int main() {
         int last_x = existed_chess[num_existed - 1][0];
         int last_y = existed_chess[num_existed - 1][1];
         Game_display_board(&game, last_x, last_y, 1);
-        ai_play(&game, &ai1, 0, &last_x, &last_y);
+        AI ai = game.current_player == 1 ? ai1 : ai2;
+        ai_play(&game, &ai, 0, &last_x, &last_y);
     }
     return 0;
 }
@@ -103,8 +107,8 @@ int human_ai(Game game, AI ai, int human_color) {
     }
     printf("\n");
     int winner = Game_check_winner(game.board) != -1
-                 ? Game_check_winner(game.board)
-                 : Game_check_ban(game.board, game.current_player, x, y);
+                     ? Game_check_winner(game.board)
+                     : Game_check_ban(game.board, game.current_player, x, y);
     return winner;
 }
 
@@ -112,7 +116,7 @@ int human_ai(Game game, AI ai, int human_color) {
 int ai_ai(Game game, AI ai1, AI ai2) {
     AI_read_openings(&ai1, "/Users/zhuyanbo/PycharmProjects/人工智能：现代方法/gobang/openings.txt");
     AI_read_openings(&ai2, "/Users/zhuyanbo/PycharmProjects/人工智能：现代方法/gobang/openings.txt");
-    Game_display_board(&game, -1, -1, 0);\
+    Game_display_board(&game, -1, -1, 0);
     int x = 0, y = 0;
     ai_play(&game, &ai1, 1, &x, &y);
     while (Game_check_winner(game.board) == -1) {
@@ -126,8 +130,8 @@ int ai_ai(Game game, AI ai1, AI ai2) {
     }
     printf("\n");
     int winner = Game_check_winner(game.board) != -1
-                 ? Game_check_winner(game.board)
-                 : Game_check_ban(game.board, game.current_player, x, y);
+                     ? Game_check_winner(game.board)
+                     : Game_check_ban(game.board, game.current_player, x, y);
     for (int i = 0; i < game.record_count; i++) {
         printf("{%d,%d}, ", game.record_chess[i][0], game.record_chess[i][1]);
     }
