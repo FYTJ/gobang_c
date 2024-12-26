@@ -66,7 +66,7 @@ void AI_read_openings(AI *ai, const char *filename) {
     fclose(f);
 }
 
-int AI_look_up_table(AI *ai, int record_chess[225][2], int steps) {
+int AI_look_up_table(AI *ai, const int record_chess[225][2], int steps) {
     /*
      * 查开局表
      * :param record_chess: ([(int, int)]) 棋盘
@@ -99,7 +99,7 @@ int AI_look_up_table(AI *ai, int record_chess[225][2], int steps) {
     return -1;
 }
 
-int AI_heuristic_alpha_beta_search(AI *ai, Game *game, int depth, int is_first_move) {
+int AI_heuristic_alpha_beta_search(AI *ai, const Game *game, int depth, int is_first_move) {
     /*
      * 极小化极大计算最优移动，启发式alpha-beta剪枝。
      * 结合后期移动缩减(LMR)。
@@ -144,7 +144,7 @@ static void *AI_parallel_max_value(void *arg) {
     Parallel_args *args = (Parallel_args *) arg;
     int *task_index = args->task_index;
     AI *ai = args->ai;
-    Game *game = args->game;
+    const Game *game = args->game;
     int **nstate_arg = args->nstate_arg;
     int nstate[BOARD_SIZE][BOARD_SIZE];
     int player = args->player;
@@ -166,6 +166,12 @@ static void *AI_parallel_max_value(void *arg) {
     results[*task_index].x = x;
     results[*task_index].y = y;
     pthread_mutex_unlock(mutex);
+    free(task_index);
+    for (int i = 0; i < BOARD_SIZE; i++) {
+        free(nstate_arg[i]);
+    }
+    free(nstate_arg);
+    free(args);
     return NULL;
 }
 
@@ -187,7 +193,7 @@ int AI_compare_reverse(const void *a, const void *b) {
     return 0;
 }
 
-static long long AI_max_value(AI *ai, Game *game, int state[BOARD_SIZE][BOARD_SIZE], int player, double alpha,
+static long long AI_max_value(AI *ai, const Game *game, int state[BOARD_SIZE][BOARD_SIZE], int player, double alpha,
                               double beta, int depth) {
     /*
      * 计算最大值的辅助函数
@@ -208,8 +214,8 @@ static long long AI_max_value(AI *ai, Game *game, int state[BOARD_SIZE][BOARD_SI
         return (val << 16) | (0xFF << 8) | 0xFF;
     }
 
-    ai->lmr_threshold = 10;
-    ai->lmr_min_depth = 0;
+    // ai->lmr_threshold = 10;
+    // ai->lmr_min_depth = 0;
     Actions act;
     Actions nbr;
     Game_actions(state, &act);
@@ -278,10 +284,7 @@ static long long AI_max_value(AI *ai, Game *game, int state[BOARD_SIZE][BOARD_SI
             if (i >= ai->lmr_threshold && depth >= ai->lmr_min_depth)
                 continue;
 
-            pthread_create(&threads[i], NULL, AI_parallel_max_value, myArgs);
-            free(task_index);
-            free(nstate_arg);
-            free(myArgs);
+            pthread_create(&threads[i], NULL, AI_parallel_max_value, (void*)myArgs);
         }
         for (int i = 0; i < ai->lmr_threshold; i++) {
             pthread_join(threads[i], NULL);
@@ -330,7 +333,7 @@ static long long AI_max_value(AI *ai, Game *game, int state[BOARD_SIZE][BOARD_SI
     return (best_val << 16) | (best_x << 8) | best_y;
 }
 
-static long long AI_min_value(AI *ai, Game *game, int state[BOARD_SIZE][BOARD_SIZE], int player, double alpha,
+static long long AI_min_value(AI *ai, const Game *game, int state[BOARD_SIZE][BOARD_SIZE], int player, double alpha,
                               double beta, int depth) {
     /*
      * 计算最小值的辅助函数
@@ -349,8 +352,8 @@ static long long AI_min_value(AI *ai, Game *game, int state[BOARD_SIZE][BOARD_SI
         long long val = current_eval;
         return (val << 16) | (0xFF << 8) | 0xFF;
     }
-    ai->lmr_threshold = 10;
-    ai->lmr_min_depth = 0;
+    // ai->lmr_threshold = 10;
+    // ai->lmr_min_depth = 0;
     Actions act;
     Actions nbr;
     Game_actions(state, &act);
@@ -368,7 +371,7 @@ static long long AI_min_value(AI *ai, Game *game, int state[BOARD_SIZE][BOARD_SI
         arr_count++;
     }
     qsort(arr, arr_count, sizeof(Data), AI_compare_reverse);
-    long long best_val =LONG_LONG_MIN;
+    long long best_val =LONG_LONG_MAX;
     int best_x = 255, best_y = 255;
     for (int i = 0; i < arr_count; i++) {
         int x = arr[i].x;
@@ -402,7 +405,7 @@ static long long AI_min_value(AI *ai, Game *game, int state[BOARD_SIZE][BOARD_SI
     return (best_val << 16) | (best_x << 8) | best_y;
 }
 
-static long long AI_heuristic_eval(AI *ai, Game *game, int state[BOARD_SIZE][BOARD_SIZE], int player, int last_x,
+static long long AI_heuristic_eval(AI *ai, const Game *game, int state[BOARD_SIZE][BOARD_SIZE], int player, int last_x,
                                    int last_y, int have_last, long long prev_eval,
                                    int prev_state[BOARD_SIZE][BOARD_SIZE]) {
     /*
