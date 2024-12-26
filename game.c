@@ -185,7 +185,7 @@ int Game_check_winner(int state[BOARD_SIZE][BOARD_SIZE]) {
     return 0;
 }
 
-int Game_is_cutoff(Game *game, int state[BOARD_SIZE][BOARD_SIZE], int depth) {
+int Game_is_cutoff(const Game *game, int state[BOARD_SIZE][BOARD_SIZE], int depth) {
     /*
      * 判断当前状态是否为终止状态
      */
@@ -310,10 +310,10 @@ int double_three(int board[15][15], int last_pos[2]) {
             series[j] = 0;
         }
         series[5] = 1;
-        int search_pos[] = {last_pos[0], last_pos[1]};
+        int search_pos[2] = {last_pos[0], last_pos[1]};
         for (int j = 1; j <= 5; j++) {
             pos[i](search_pos, 1);
-            if (search_pos[0] > 14 || search_pos[1] > 14)
+            if (search_pos[0] > 14 || search_pos[1] > 14 || search_pos[0] < 0 || search_pos[1] < 0)
                 break;
             series[5 + j] = board[search_pos[0]][search_pos[1]] == 3 ? 1 : board[search_pos[0]][search_pos[1]];
         }
@@ -321,7 +321,7 @@ int double_three(int board[15][15], int last_pos[2]) {
         search_pos[1] = last_pos[1];
         for (int j = 1; j <= 5; j++) {
             pos[i](search_pos, -1);
-            if (search_pos[0] < 0 || search_pos[1] < 0)
+            if (search_pos[0] < 0 || search_pos[1] < 0 || search_pos[0] > 14 || search_pos[1] > 14)
                 break;
             series[5 - j] = board[search_pos[0]][search_pos[1]] == 3 ? 1 : board[search_pos[0]][search_pos[1]];
         }
@@ -356,7 +356,7 @@ int double_four(int board[15][15], int last_pos[2]) {
         int search_pos[] = {last_pos[0], last_pos[1]};
         for (int j = 1; j <= 4; j++) {
             pos[i](search_pos, 1);
-            if (search_pos[0] > 14 || search_pos[1] > 14)
+            if (search_pos[0] > 14 || search_pos[1] > 14 || search_pos[0] < 0 || search_pos[1] < 0)
                 break;
             series[4 + j] = board[search_pos[0]][search_pos[1]] == 3 ? 1 : board[search_pos[0]][search_pos[1]];
         }
@@ -364,7 +364,7 @@ int double_four(int board[15][15], int last_pos[2]) {
         search_pos[1] = last_pos[1];
         for (int j = 1; j <= 4; j++) {
             pos[i](search_pos, -1);
-            if (search_pos[0] < 0 || search_pos[1] < 0)
+            if (search_pos[0] < 0 || search_pos[1] < 0 || search_pos[0] > 14 || search_pos[1] > 14)
                 break;
             series[4 - j] = board[search_pos[0]][search_pos[1]] == 3 ? 1 : board[search_pos[0]][search_pos[1]];
         }
